@@ -1,14 +1,32 @@
+import os
 from concurrent.futures import Future
 from dataclasses import replace
 from datetime import UTC, datetime
+from types import SimpleNamespace
 from zoneinfo import ZoneInfo
 
+import pytest
+
 from pl_lti_push import scheduler
+from pl_lti_push.cli import main
 from pl_lti_push.config import Assignment, Config
 from pl_lti_push.state import State
 
 
-def test_scheduler_skips_overlap_capacity_and_disabled(monkeypatch, tmp_path):
+def test_healthcheck_command_without_config_or_state(monkeypatch, tmp_path):
+    heartbeat = tmp_path / "heartbeat"
+    monkeypatch.setattr(scheduler, "HEARTBEAT", heartbeat)
+    args = ["--config", str(tmp_path / "missing.json"), "healthcheck"]
+    assert main(args) == 1
+    heartbeat.touch()
+    assert main(args) == 0
+    stale = datetime.now(UTC).timestamp() - 31
+    os.utime(heartbeat, (stale, stale))
+    assert main(args) == 1
+
+
+def test_scheduler_skips_overlap_capacity_and_disabled(monkeypatch, tmp_path, caplog):
+    caplog.set_level("INFO")
     a = Assignment("a", "1", "2", "3", ["* * * * *", "0 * * * *"])
     b = replace(a, name="b", assessment_id="4")
     c = replace(a, name="c", assessment_id="5", enabled=False)
@@ -18,7 +36,7 @@ def test_scheduler_skips_overlap_capacity_and_disabled(monkeypatch, tmp_path):
     events = []
     ticks = 0
 
-    class Clock:
+    class Clock(datetime):
         @staticmethod
         def now(_):
             return datetime(2026, 9, 12, 0, ticks // 2, tzinfo=UTC)
@@ -50,12 +68,84 @@ def test_scheduler_skips_overlap_capacity_and_disabled(monkeypatch, tmp_path):
             raise AssertionError("Fake executor does not execute")
 
     monkeypatch.setattr(scheduler, "datetime", Clock)
+    monkeypatch.setattr(scheduler, "HEARTBEAT", tmp_path / "heartbeat")
     monkeypatch.setattr(scheduler, "ThreadPoolExecutor", Pool)
     monkeypatch.setattr(scheduler, "event", lambda a, *_args, **_kw: events.append(a.name))
     scheduler.serve(config, Runner(), state, Stop())
     assert submitted == ["a"]
     assert events == ["b", "a", "b"]
     assert state.get(c.key) == {}
+    assert (tmp_path / "heartbeat").exists()
+    assert caplog.messages == [
+        "Waiting; next scheduled task: a at 2026-09-12T00:01:00+00:00",
+        "Waiting; next scheduled task: a at 2026-09-12T00:02:00+00:00",
+    ]
+
+
+def test_next_run_respects_windows_claims_and_timezone(tmp_path):
+    now = datetime.fromisoformat("2026-09-14T15:00:00Z")
+    a = Assignment("a", "1", "2", "3", ["0 9 * * *", "30 8 * * *"])
+    config = Config("https://example.invalid", ZoneInfo("America/Vancouver"), (a,))
+    state = State(tmp_path, config.base_url)
+    assert scheduler.next_run(config, state, now) == (
+        datetime.fromisoformat("2026-09-14T08:30:00-07:00"),
+        "a",
+    )
+    state.claim(a.key, "2026-09-14T08:30")
+    assert scheduler.next_run(config, state, now) == (
+        datetime.fromisoformat("2026-09-14T09:00:00-07:00"),
+        "a",
+    )
+    for unavailable in (
+        replace(a, enabled=False),
+        replace(a, ends_at=datetime.fromisoformat("2026-09-14T16:00:00Z")),
+        replace(a, cron=["0 0 31 2 *"]),
+    ):
+        assert scheduler.next_run(replace(config, assignments=(unavailable,)), state, now) is None
+    future = replace(
+        a, cron=["* * * * *"], starts_at=datetime.fromisoformat("2026-09-15T16:00:30Z")
+    )
+    assert scheduler.next_run(replace(config, assignments=(future,)), state, now) == (
+        future.starts_at,
+        "a",
+    )
+
+
+@pytest.mark.parametrize("enabled", [True, False])
+def test_waiting_log_refreshes_at_activation_without_repeating(
+    monkeypatch, tmp_path, caplog, enabled
+):
+    caplog.set_level("INFO")
+    start = datetime(2026, 9, 14, 0, 0, 30, tzinfo=UTC)
+    assignment = Assignment("a", "1", "2", "3", ["* * * * *"], starts_at=start, enabled=enabled)
+    config = Config("https://example.invalid", ZoneInfo("UTC"), (assignment,))
+    state = State(tmp_path, config.base_url)
+    ticks = 0
+
+    class Clock(datetime):
+        @staticmethod
+        def now(_):
+            return start.replace(second=ticks * 15)
+
+    class Stop:
+        def is_set(self):
+            return ticks == 4
+
+        def wait(self, _):
+            nonlocal ticks
+            ticks += 1
+
+    monkeypatch.setattr(scheduler, "datetime", Clock)
+    monkeypatch.setattr(scheduler, "HEARTBEAT", tmp_path / "heartbeat")
+    scheduler.serve(config, SimpleNamespace(run=lambda _: None), state, Stop())
+    assert caplog.messages == (
+        [
+            "Waiting; next scheduled task: a at 2026-09-14T00:00:30+00:00",
+            "Waiting; next scheduled task: a at 2026-09-14T00:01:00+00:00",
+        ]
+        if enabled
+        else ["Waiting; no upcoming scheduled tasks"]
+    )
 
 
 def test_activation_window_boundaries_and_cron():

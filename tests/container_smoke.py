@@ -120,10 +120,14 @@ def main():
                 while time.monotonic() < deadline:
                     state = json.loads((directory / "state/runs.json").read_text())
                     if posts == 2 and state["assignments"]["1/2/3"]["status"] == "success":
-                        break
+                        health = subprocess.run(
+                            ["pl-lti-push", "healthcheck"], capture_output=True, timeout=5
+                        )
+                        if health.returncode == 0:
+                            break
                     time.sleep(0.05)
                 else:
-                    raise AssertionError("Scheduler did not complete its local job")
+                    raise AssertionError("Scheduler did not complete its local job and heartbeat")
                 process.send_signal(signal.SIGTERM)
                 process.communicate(timeout=5)
                 assert process.returncode == 0
@@ -133,7 +137,7 @@ def main():
                     process.communicate()
             assert (directory / "state/cookies.json").stat().st_mode & 0o777 == 0o600
             assert (directory / "state").stat().st_mode & 0o777 == 0o700
-            print("Container smoke passed: CLI, stdin cookie import, HTTP job, cron, SIGTERM.")
+            print("Container smoke passed: CLI, cookie import, HTTP job, cron, heartbeat, SIGTERM.")
     finally:
         server.shutdown()
         server.server_close()

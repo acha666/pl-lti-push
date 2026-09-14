@@ -4,6 +4,10 @@ For entry format and release preparation, see [CI and releases](docs/releases.md
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-13
+
+- Add a local `healthcheck` command used by Compose and log the next scheduled task while waiting.
+
 ## [0.1.1] - 2026-09-13
 
 - Fix multi-architecture release smoke tests with separate matrix jobs.
