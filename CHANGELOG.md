@@ -4,6 +4,10 @@ For entry format and release preparation, see [CI and releases](docs/releases.md
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-09-14
+
+- Allow more time for container smoke-test commands and scheduler startup under ARM64 emulation.
+
 ## [0.2.0] - 2026-09-13
 
 - Add a local `healthcheck` command used by Compose and log the next scheduled task while waiting.

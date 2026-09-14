@@ -12,6 +12,8 @@ from pathlib import Path
 from urllib.parse import parse_qs
 
 posts = 0
+# Release smoke tests also run ARM64 under QEMU, including every CLI startup.
+SMOKE_TIMEOUT = 30
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -109,19 +111,21 @@ def main():
                     input=cookies.read_bytes() if args[0] == "import-cookies" else None,
                     check=True,
                     capture_output=True,
-                    timeout=10,
+                    timeout=SMOKE_TIMEOUT,
                 )
             assert posts == 1
             process = subprocess.Popen(
                 command + ["serve"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
             )
             try:
-                deadline = time.monotonic() + 10
+                deadline = time.monotonic() + SMOKE_TIMEOUT
                 while time.monotonic() < deadline:
                     state = json.loads((directory / "state/runs.json").read_text())
                     if posts == 2 and state["assignments"]["1/2/3"]["status"] == "success":
                         health = subprocess.run(
-                            ["pl-lti-push", "healthcheck"], capture_output=True, timeout=5
+                            ["pl-lti-push", "healthcheck"],
+                            capture_output=True,
+                            timeout=SMOKE_TIMEOUT,
                         )
                         if health.returncode == 0:
                             break
@@ -129,7 +133,7 @@ def main():
                 else:
                     raise AssertionError("Scheduler did not complete its local job and heartbeat")
                 process.send_signal(signal.SIGTERM)
-                process.communicate(timeout=5)
+                process.communicate(timeout=SMOKE_TIMEOUT)
                 assert process.returncode == 0
             finally:
                 if process.poll() is None:
