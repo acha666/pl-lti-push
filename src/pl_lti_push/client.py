@@ -14,7 +14,7 @@ class Client:
         self.config, self.credentials = config, credentials
         self.session = requests.Session()
         self.session.trust_env = False
-        self.session.headers["User-Agent"] = "pl-lti-push/0.1.0"
+        self.session.headers["User-Agent"] = "pl-lti-push/0.1.1"
         self.lock = threading.Lock()
 
     def request(self, method, path, **kwargs):

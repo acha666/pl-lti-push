@@ -18,4 +18,4 @@ CI runs on pull requests and branch pushes: Prettier; Python 3.13 dependency che
    git push origin v0.1.0
    ```
 
-The release workflow does not rerun CI. It checks the tag, project version, and matching nonempty changelog entry; publishes a versioned GHCR image for `linux/amd64` and `linux/arm64`; smoke-tests its digest on both architectures; and creates a GitHub Release with notes and image references. Reruns preserve existing release notes.
+The release workflow does not rerun CI. It checks the tag, project version, and matching nonempty changelog entry; publishes a versioned GHCR image for `linux/amd64` and `linux/arm64`; smoke-tests its digest in separate `amd64` and `arm64` matrix jobs; and, after both pass, creates a GitHub Release with notes and image references. Reruns preserve existing release notes.

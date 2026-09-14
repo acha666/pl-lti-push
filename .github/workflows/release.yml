@@ -15,8 +15,12 @@ jobs:
   publish:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    outputs:
+      image: ${{ steps.version.outputs.image }}
+      version: ${{ steps.version.outputs.version }}
+      digest: ${{ steps.build.outputs.digest }}
     permissions:
-      contents: write
+      contents: read
       packages: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -57,27 +61,63 @@ jobs:
           sbom: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - name: Smoke test published digest on both architectures
-        env:
-          IMAGE: ${{ steps.version.outputs.image }}@${{ steps.build.outputs.digest }}
-        run: |
-          for arch in amd64 arm64; do
-            docker run --rm --platform "linux/$arch" --network none \
-              --read-only --cap-drop ALL --security-opt no-new-privileges \
-              --tmpfs /tmp:mode=1777 --mount type=volume,target=/state \
-              -e SMOKE_DIR=/state -v "$PWD/tests/container_smoke.py:/test.py:ro" \
-              --entrypoint python "$IMAGE" /test.py
-          done
 
+  smoke:
+    name: Container smoke (${{ matrix.arch }})
+    needs: publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: read
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a # v4.3.0
+        if: matrix.arch == 'arm64'
+        with:
+          platforms: arm64
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Smoke test published digest
+        env:
+          IMAGE: ${{ needs.publish.outputs.image }}@${{ needs.publish.outputs.digest }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          docker run --rm --platform "linux/$ARCH" --network none \
+            --read-only --cap-drop ALL --security-opt no-new-privileges \
+            --tmpfs /tmp:mode=1777 --mount type=volume,target=/state \
+            -e SMOKE_DIR=/state -v "$PWD/tests/container_smoke.py:/test.py:ro" \
+            --entrypoint python "$IMAGE" /test.py
+
+  release:
+    needs: [publish, smoke]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
-          IMAGE: ${{ steps.version.outputs.image }}
-          VERSION: ${{ steps.version.outputs.version }}
-          DIGEST: ${{ steps.build.outputs.digest }}
+          IMAGE: ${{ needs.publish.outputs.image }}
+          VERSION: ${{ needs.publish.outputs.version }}
+          DIGEST: ${{ needs.publish.outputs.digest }}
         run: |
+          python3 scripts/changelog.py --tag "$TAG" --output "$RUNNER_TEMP/release.md"
           cat >> "$RUNNER_TEMP/release.md" <<EOF_NOTES
 
           ## Container image
