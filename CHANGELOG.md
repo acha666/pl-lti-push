@@ -4,6 +4,10 @@ For entry format and release preparation, see [CI and releases](docs/releases.md
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-09-14
+
+- Move the heartbeat check into the Dockerfile with an image-level `HEALTHCHECK`, replacing the CLI subcommand and Compose override.
+
 ## [0.2.1] - 2026-09-14
 
 - Allow more time for container smoke-test commands and scheduler startup under ARM64 emulation.

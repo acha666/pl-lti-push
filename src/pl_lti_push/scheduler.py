@@ -12,14 +12,6 @@ from .runner import event
 HEARTBEAT = Path("/tmp/pl-lti-push-heartbeat")
 
 
-def healthcheck():
-    try:
-        age = datetime.now(UTC).timestamp() - HEARTBEAT.stat().st_mtime
-    except OSError:
-        return 1
-    return 0 if 0 <= age <= 30 else 1
-
-
 def next_run(config, state, now):
     candidates = []
     for assignment in config.assignments:

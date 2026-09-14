@@ -6,5 +6,18 @@ RUN pip install --no-deps -r requirements.lock
 COPY src ./src
 RUN pip install --no-deps --no-build-isolation . \
     && mkdir -m 700 /state
+COPY --chmod=755 <<'EOF' /usr/local/bin/healthcheck
+#!/usr/local/bin/python
+import os
+import sys
+import time
+
+try:
+    age = time.time() - os.stat("/tmp/pl-lti-push-heartbeat").st_mtime
+except OSError:
+    sys.exit(1)
+sys.exit(0 if 0 <= age <= 30 else 1)
+EOF
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD ["/usr/local/bin/healthcheck"]
 ENTRYPOINT ["pl-lti-push"]
 CMD ["--help"]

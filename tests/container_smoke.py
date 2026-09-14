@@ -57,7 +57,24 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
 
+def check_health():
+    return subprocess.run(
+        ["/usr/local/bin/healthcheck"], capture_output=True, timeout=SMOKE_TIMEOUT
+    ).returncode
+
+
 def main():
+    heartbeat = Path("/tmp/pl-lti-push-heartbeat")
+    assert check_health() == 1
+    try:
+        heartbeat.touch()
+        assert check_health() == 0
+        for age in (31, -60):
+            timestamp = time.time() - age
+            os.utime(heartbeat, (timestamp, timestamp))
+            assert check_health() == 1
+    finally:
+        heartbeat.unlink(missing_ok=True)
     if "SMOKE_DIR" in os.environ:
         assert Path(os.environ["SMOKE_DIR"]).stat().st_mode & 0o777 == 0o700
     server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
@@ -122,12 +139,7 @@ def main():
                 while time.monotonic() < deadline:
                     state = json.loads((directory / "state/runs.json").read_text())
                     if posts == 2 and state["assignments"]["1/2/3"]["status"] == "success":
-                        health = subprocess.run(
-                            ["pl-lti-push", "healthcheck"],
-                            capture_output=True,
-                            timeout=SMOKE_TIMEOUT,
-                        )
-                        if health.returncode == 0:
+                        if check_health() == 0:
                             break
                     time.sleep(0.05)
                 else:

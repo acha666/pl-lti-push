@@ -16,7 +16,7 @@ from .config import load
 from .credentials import Credentials
 from .errors import UserError
 from .runner import Runner
-from .scheduler import healthcheck, serve
+from .scheduler import serve
 from .state import State, exclusive
 
 
@@ -63,7 +63,6 @@ def main(argv=None):
     commands.add_parser("validate", help="Validate configuration offline")
     commands.add_parser("status", help="Show persisted run state offline")
     commands.add_parser("serve", help="Run the cron scheduler")
-    commands.add_parser("healthcheck", help="Check the local scheduler heartbeat offline")
     commands.add_parser(
         "check-auth", help="GET each enabled assignment form; does not submit grades"
     )
@@ -88,8 +87,6 @@ def main(argv=None):
     os.umask(0o077)
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     try:
-        if args.command == "healthcheck":
-            return healthcheck()
         config = load(args.config)
         if args.command == "validate":
             print(f"Valid: {len(config.assignments)} assignments; timezone={config.timezone}")

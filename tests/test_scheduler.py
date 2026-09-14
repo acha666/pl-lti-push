@@ -1,4 +1,3 @@
-import os
 from concurrent.futures import Future
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -8,21 +7,8 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from pl_lti_push import scheduler
-from pl_lti_push.cli import main
 from pl_lti_push.config import Assignment, Config
 from pl_lti_push.state import State
-
-
-def test_healthcheck_command_without_config_or_state(monkeypatch, tmp_path):
-    heartbeat = tmp_path / "heartbeat"
-    monkeypatch.setattr(scheduler, "HEARTBEAT", heartbeat)
-    args = ["--config", str(tmp_path / "missing.json"), "healthcheck"]
-    assert main(args) == 1
-    heartbeat.touch()
-    assert main(args) == 0
-    stale = datetime.now(UTC).timestamp() - 31
-    os.utime(heartbeat, (stale, stale))
-    assert main(args) == 1
 
 
 def test_scheduler_skips_overlap_capacity_and_disabled(monkeypatch, tmp_path, caplog):
