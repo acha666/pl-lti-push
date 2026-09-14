@@ -1,0 +1,27 @@
+{
+  "base_url": "https://pl.example.invalid",
+  "timezone": "America/Vancouver",
+  "request_timeout_seconds": 30,
+  "job_timeout_seconds": 600,
+  "poll_interval_seconds": 5,
+  "workers": 4,
+  "assignments": [
+    {
+      "name": "lab-1",
+      "course_instance_id": "100",
+      "lti_course_instance_id": "200",
+      "assessment_id": "300",
+      "cron": ["0 */6 * * *", "30 18 * * 1-5"],
+      "starts_at": "2026-09-01T00:00:00-07:00",
+      "ends_at": "2026-12-20T00:00:00-08:00"
+    },
+    {
+      "name": "midterm-1",
+      "course_instance_id": "100",
+      "lti_course_instance_id": "200",
+      "assessment_id": "301",
+      "cron": ["30 18 * * 1-5"],
+      "enabled": false
+    }
+  ]
+}

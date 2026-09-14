@@ -1,0 +1,32 @@
+{
+  "name": "pl-lti-push",
+  "image": "mcr.microsoft.com/devcontainers/python:3-3.13-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/node:2": {
+      "version": "24",
+      "nodeGypDependencies": false
+    }
+  },
+  "remoteUser": "vscode",
+  "postCreateCommand": "sh .devcontainer/post-create.sh",
+  "remoteEnv": {
+    "VIRTUAL_ENV": "/home/vscode/.venv",
+    "PATH": "/home/vscode/.venv/bin:${containerEnv:PATH}"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-python.python", "charliermarsh.ruff", "esbenp.prettier-vscode"],
+      "settings": {
+        "python.defaultInterpreterPath": "/home/vscode/.venv/bin/python",
+        "python.testing.pytestEnabled": true,
+        "editor.formatOnSave": true,
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff"
+        },
+        "[markdown][json][jsonc][yaml]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        }
+      }
+    }
+  }
+}

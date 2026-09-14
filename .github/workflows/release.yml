@@ -1,0 +1,95 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify release tag and changelog
+        id: version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          python3 scripts/changelog.py --tag "$TAG" --output "$RUNNER_TEMP/release.md"
+          {
+            echo "version=${TAG#v}"
+            echo "image=ghcr.io/${GITHUB_REPOSITORY,,}"
+          } >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a # v4.3.0
+        with:
+          platforms: arm64
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish image
+        id: build
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.version.outputs.image }}:${{ steps.version.outputs.version }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.version.outputs.version }}
+          provenance: mode=max
+          sbom: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Smoke test published digest on both architectures
+        env:
+          IMAGE: ${{ steps.version.outputs.image }}@${{ steps.build.outputs.digest }}
+        run: |
+          for arch in amd64 arm64; do
+            docker run --rm --platform "linux/$arch" --network none \
+              --read-only --cap-drop ALL --security-opt no-new-privileges \
+              --tmpfs /tmp:mode=1777 --mount type=volume,target=/state \
+              -e SMOKE_DIR=/state -v "$PWD/tests/container_smoke.py:/test.py:ro" \
+              --entrypoint python "$IMAGE" /test.py
+          done
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          IMAGE: ${{ steps.version.outputs.image }}
+          VERSION: ${{ steps.version.outputs.version }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          cat >> "$RUNNER_TEMP/release.md" <<EOF_NOTES
+
+          ## Container image
+          Container image (linux/amd64 and linux/arm64):
+          \`$IMAGE:$VERSION\`
+
+          Pinned image:
+          \`$IMAGE@$DIGEST\`
+          EOF_NOTES
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release already exists; leaving its notes unchanged."
+          else
+            gh release create "$TAG" --verify-tag --title "$TAG" \
+              --notes-file "$RUNNER_TEMP/release.md"
+          fi

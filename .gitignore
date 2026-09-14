@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+*.har*
+state/
+secrets/
+config.json
+.env
+node_modules/

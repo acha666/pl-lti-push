@@ -1,0 +1,10 @@
+services:
+  scheduler:
+    extends:
+      file: compose.yaml
+      service: scheduler
+    build: !reset null
+    image: ${PL_LTI_PUSH_IMAGE:?Set PL_LTI_PUSH_IMAGE to a GHCR version or digest}
+
+volumes:
+  state:

@@ -1,0 +1,24 @@
+services:
+  scheduler:
+    build: .
+    image: pl-lti-push:local
+    command: ["serve"]
+    restart: unless-stopped
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    stop_grace_period: 45s
+    volumes:
+      - ./config.json:/config/config.json:ro
+      - state:/state
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  state:

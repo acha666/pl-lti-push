@@ -1,0 +1,7 @@
+**
+!Dockerfile
+!pyproject.toml
+!requirements.lock
+!src/
+!src/pl_lti_push/
+!src/pl_lti_push/*.py
