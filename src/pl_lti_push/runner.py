@@ -1,26 +1,10 @@
 """Submission state machine; never retry a POST with an uncertain outcome."""
 
-import json
-import logging
 import time
 from datetime import UTC, datetime
 
 from .errors import UserError
-
-log = logging.getLogger(__name__)
-
-
-def event(assignment, status, **fields):
-    log.info(
-        json.dumps(
-            {
-                "time": datetime.now(UTC).isoformat(),
-                "assignment": assignment.name,
-                "status": status,
-                **fields,
-            }
-        )
-    )
+from .logging import event
 
 
 class Runner:
@@ -71,6 +55,8 @@ class Runner:
                 path = self.client.submit(assignment, csrf)
                 self.state.update(key, status="pending", job_path=path)
                 event(assignment, "accepted", job_path=path)
+            else:
+                event(assignment, "resuming", job_path=path)
             deadline = time.monotonic() + self.config.job_timeout_seconds
             while not self.stop.is_set():
                 status, counts = self.client.poll(path)
@@ -89,9 +75,11 @@ class Runner:
                         assignment,
                         "pending",
                         reason="Polling deadline reached; resume next run",
+                        job_path=path,
                     )
                     return False
                 self.stop.wait(min(self.config.poll_interval_seconds, remaining))
+            event(assignment, "pending", reason="Shutdown; resume next run", job_path=path)
             return False
         except UserError as exc:
             # Only our fixed diagnostic messages are logged, never response bodies or tokens.

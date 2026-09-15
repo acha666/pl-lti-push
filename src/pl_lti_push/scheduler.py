@@ -1,13 +1,12 @@
 """Minute-resolution cron scheduling, bounded concurrency, no catch-up queue."""
 
-import logging
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from croniter import CroniterBadDateError, croniter
 
-from .runner import event
+from .logging import event, log
 
 HEARTBEAT = Path("/tmp/pl-lti-push-heartbeat")
 
@@ -67,11 +66,9 @@ def serve(config, runner, state, stop):
                 upcoming = next_run(config, state, now)
                 if upcoming:
                     next_log_at, name = upcoming
-                    logging.info(
-                        "Waiting; next scheduled task: %s at %s", name, next_log_at.isoformat()
-                    )
+                    log.info("Next run: %s at %s", name, next_log_at.isoformat(timespec="seconds"))
                 else:
                     next_log_at = datetime.max.replace(tzinfo=UTC)
-                    logging.info("Waiting; no upcoming scheduled tasks")
+                    log.info("No upcoming scheduled tasks")
             HEARTBEAT.touch()
             stop.wait(1)

@@ -160,7 +160,8 @@ def test_auth_redirect_is_not_followed(system):
     assert runner.state.get(A.key) == {}
 
 
-def test_pending_resumes_without_post_after_restart(system):
+def test_pending_resumes_without_post_after_restart(system, caplog):
+    caplog.set_level("INFO", logger="pl_lti_push")
     runner, seen, _, directory = system
     seen["status"] = "Running"
     assert not runner.run(A)
@@ -171,6 +172,12 @@ def test_pending_resumes_without_post_after_restart(system):
 
     assert runner.run(replace(A, ends_at=datetime.now(UTC) - timedelta(days=1)))
     assert seen["posts"] == 1
+    assert caplog.messages == [
+        f"ACCEPTED | job_path={PATH}",
+        f"PENDING | Polling deadline reached; resume next run | job_path={PATH}",
+        f"RESUMING | job_path={PATH}",
+        f"SUCCESS | job_path={PATH} | sent=7 | errors=0 | skipped=2",
+    ]
 
 
 def test_shutdown_leaves_resumable_job(system):

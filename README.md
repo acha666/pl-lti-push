@@ -106,7 +106,7 @@ docker compose up -d
 
 To refresh an expired or revoked session, log in again and use `import-cookies` followed by `check-auth` in place of `run lab-1` above.
 
-`run` exits with `0` only for verified job success with no reported delivery errors. JSON run events include assignment names, job paths, statuses, and aggregate counts. Tests use synthetic data; real PL/LMS delivery and session longevity remain unverified.
+`run` exits with `0` only for verified job success with no reported delivery errors. Text logs use the configured timezone and include severity, assignment names, statuses, job paths, and aggregate counts. Tests use synthetic data; real PL/LMS delivery and session longevity remain unverified.
 
 ## State and recovery
 

@@ -3,7 +3,6 @@
 import argparse
 import getpass
 import json
-import logging
 import os
 import signal
 import sys
@@ -15,6 +14,7 @@ from .client import Client
 from .config import load
 from .credentials import Credentials
 from .errors import UserError
+from .logging import configure, log
 from .runner import Runner
 from .scheduler import serve
 from .state import State, exclusive
@@ -85,9 +85,10 @@ def main(argv=None):
     )
     args = parser.parse_args(argv)
     os.umask(0o077)
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    formatter = configure()
     try:
         config = load(args.config)
+        formatter.timezone = config.timezone
         if args.command == "validate":
             print(f"Valid: {len(config.assignments)} assignments; timezone={config.timezone}")
             return 0
@@ -135,11 +136,11 @@ def main(argv=None):
                 serve(config, runner, state, stop)
                 return 0
     except UserError as exc:
-        logging.error("%s", exc)
+        log.error("%s", exc)
         return 1
     except Exception:
         # Config/cookie parsing errors can contain secrets. Keep CLI failures sanitized.
-        logging.error(
+        log.error(
             "Command failed. Check config, credentials, state permissions and access; "
             "another process may hold the state lock."
         )

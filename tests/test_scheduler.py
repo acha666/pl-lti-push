@@ -63,8 +63,8 @@ def test_scheduler_skips_overlap_capacity_and_disabled(monkeypatch, tmp_path, ca
     assert state.get(c.key) == {}
     assert (tmp_path / "heartbeat").exists()
     assert caplog.messages == [
-        "Waiting; next scheduled task: a at 2026-09-12T00:01:00+00:00",
-        "Waiting; next scheduled task: a at 2026-09-12T00:02:00+00:00",
+        "Next run: a at 2026-09-12T00:01:00+00:00",
+        "Next run: a at 2026-09-12T00:02:00+00:00",
     ]
 
 
@@ -126,11 +126,11 @@ def test_waiting_log_refreshes_at_activation_without_repeating(
     scheduler.serve(config, SimpleNamespace(run=lambda _: None), state, Stop())
     assert caplog.messages == (
         [
-            "Waiting; next scheduled task: a at 2026-09-14T00:00:30+00:00",
-            "Waiting; next scheduled task: a at 2026-09-14T00:01:00+00:00",
+            "Next run: a at 2026-09-14T00:00:30+00:00",
+            "Next run: a at 2026-09-14T00:01:00+00:00",
         ]
         if enabled
-        else ["Waiting; no upcoming scheduled tasks"]
+        else ["No upcoming scheduled tasks"]
     )
 
 

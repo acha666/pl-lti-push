@@ -4,6 +4,11 @@ For entry format and release preparation, see [CI and releases](docs/releases.md
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-15
+
+- Replace mixed JSON and plain-text operational logs with a uniform, readable format using the configured timezone, severity, assignment, and event details.
+- Log resumed polling and include job paths in pending events; distinguish warnings and failures from informational events.
+
 ## [0.2.2] - 2026-09-14
 
 - Move the heartbeat check into the Dockerfile with an image-level `HEALTHCHECK`, replacing the CLI subcommand and Compose override.
