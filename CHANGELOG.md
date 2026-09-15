@@ -4,6 +4,11 @@ For entry format and release preparation, see [CI and releases](docs/releases.md
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-09-15
+
+- Build and smoke-test ARM64 release images on native ARM runners instead of QEMU emulation.
+- Build each architecture separately with isolated caches, then merge image digests into the versioned multi-platform GHCR image.
+
 ## [0.3.1] - 2026-09-15
 
 - Use historical Vancouver dates in logging timezone tests to avoid incorrect winter-offset expectations after the 2026 switch to year-round daylight time.
