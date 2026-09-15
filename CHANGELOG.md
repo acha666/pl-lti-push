@@ -4,6 +4,10 @@ For entry format and release preparation, see [CI and releases](docs/releases.md
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-09-15
+
+- Use historical Vancouver dates in logging timezone tests to avoid incorrect winter-offset expectations after the 2026 switch to year-round daylight time.
+
 ## [0.3.0] - 2026-09-15
 
 - Replace mixed JSON and plain-text operational logs with a uniform, readable format using the configured timezone, severity, assignment, and event details.

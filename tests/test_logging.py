@@ -11,8 +11,9 @@ from pl_lti_push.logging import Formatter, event
 @pytest.mark.parametrize(
     "instant, expected",
     [
-        ("2026-09-14T17:00:01.425205+00:00", "2026-09-14T10:00:01-07:00"),
-        ("2026-12-14T17:00:01+00:00", "2026-12-14T09:00:01-08:00"),
+        # Use historical DST dates: Vancouver adopted year-round UTC-7 in 2026.
+        ("2025-09-14T17:00:01.425205+00:00", "2025-09-14T10:00:01-07:00"),
+        ("2025-12-14T17:00:01+00:00", "2025-12-14T09:00:01-08:00"),
     ],
 )
 def test_log_timestamp_uses_configured_timezone_and_dst(instant, expected):
